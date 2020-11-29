@@ -1,0 +1,27 @@
+{
+  "name": "node-common-logger",
+  "version": "0.0.1",
+  "description": "A node library provides flexible logging ways and simple facade. User could use whatever implementations they like with the uniform api.",
+  "main": "./dist/index.js",
+  "types": "./types/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ReinaldLee/node-common-logger.git"
+  },
+  "keywords": [
+    "logger",
+    "log"
+  ],
+  "author": "ReginaldLee",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ReinaldLee/node-common-logger/issues"
+  },
+  "homepage": "https://github.com/ReinaldLee/node-common-logger#readme",
+  "devDependencies": {
+    "typescript": "^4.1.2"
+  }
+}

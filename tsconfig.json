@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "typings",
+    "esModuleInterop": true,
+    "module": "commonjs",
+    "target": "es2017",
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "strict": true,
+    "outDir": "dist"
+  },
+  "exclude": [
+    "node_modules",
+    "typings/**"
+  ]
+}
