@@ -10,8 +10,10 @@
     "strict": true,
     "outDir": "dist"
   },
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
-    "node_modules",
-    "typings/**"
+    "node_modules"
   ]
 }

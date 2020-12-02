@@ -105,3 +105,4 @@ jspm_packages/
 
 # source code
 /src
+*.js.map

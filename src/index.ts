@@ -2,7 +2,9 @@ import Logger from "./Logger";
 import LogLevel from "./LogLevel";
 import DefaultLogStrategy from "./DefaultLogStrategy";
 
-export default new Logger(LogLevel.INFO, new DefaultLogStrategy());
+const logger = new Logger(LogLevel.INFO, new DefaultLogStrategy());
 
-export * from './LogStrategy';
-export * from './LogLevel';
+export default logger;
+
+export {default as LogStrategy} from './LogStrategy';
+export {logger, LogLevel};
