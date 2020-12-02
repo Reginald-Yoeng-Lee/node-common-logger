@@ -5,17 +5,50 @@ export default class Logger implements LogStrategy {
 
     logLevel: LogLevel;
 
-    logStrategy: LogStrategy;
+    private strategy: LogStrategy;
 
     private currentTag?: string;
     private tagSeparator?: string;
     private args?: [string, string][];
+    private readonly categoryLogStrategyCache = new Map<string, LogStrategy>();
 
     #main = true;
 
     constructor(logLevel: LogLevel, logStrategy: LogStrategy) {
         this.logLevel = logLevel;
-        this.logStrategy = logStrategy;
+        this.strategy = logStrategy;
+    }
+
+    set logStrategy(strategy: LogStrategy) {
+        if (this.strategy !== strategy) {
+            this.strategy = strategy;
+            this.categoryLogStrategyCache.clear();
+        }
+    }
+
+    get logStrategy(): LogStrategy {
+        return this.strategy;
+    }
+
+    /**
+     * Fetch a specific named category logger. The result may be fetched from the cache unless <code>useCache</code> is
+     * set to <code>false</code>. Since the category is relative to the basic LogStrategy, the caches would be cleared if
+     * the base LogStrategy changed.
+     *
+     * Notice: The Logger returned from here could be a brand new one. So if we want to change the basic LogStrategy (which
+     * would be applied to the successor new Logger), do NOT modify the logStrategy property of the returned Logger.
+     * Instead, modify the one imported.
+     *
+     * @param name
+     * @param useCache
+     */
+    category(name: string, useCache: boolean = true): Logger {
+        let categoryStrategy = useCache && this.categoryLogStrategyCache.get(name);
+        if (!categoryStrategy) {
+            categoryStrategy = this.logStrategy.category(name);
+            this.categoryLogStrategyCache.set(name, categoryStrategy);
+        }
+        return this.createSubLogger(categoryStrategy);
     }
 
     log(level: LogLevel, msg: string, err?: Error): void {
@@ -76,6 +109,16 @@ export default class Logger implements LogStrategy {
         return this.logLevel >= level;
     }
 
+    /**
+     * Fetch a logger that prepends a tag right before the actual logging content automatically.
+     *
+     * Notice: The Logger returned from here could be a brand new one. So if we want to change the basic LogStrategy (which
+     * would be applied to the successor new Logger), do NOT modify the logStrategy property of the returned Logger.
+     * Instead, modify the one imported.
+     *
+     * @param tag The text being prepended.
+     * @param separator The text between the tag and the content.
+     */
     tag(tag: string, separator: string = ' - '): Logger {
         const logger = this.createSubLogger();
         logger.currentTag = tag;
@@ -83,6 +126,17 @@ export default class Logger implements LogStrategy {
         return logger;
     }
 
+    /**
+     * Fetch a logger allows replace the first special symbol in the current logging content to the very argument. We could
+     * call this method multiple times in chain for replace multiple symbols.
+     *
+     * Notice: The Logger returned from here could be a brand new one. So if we want to change the basic LogStrategy (which
+     * would be applied to the successor new Logger), do NOT modify the logStrategy property of the returned Logger.
+     * Instead, modify the one imported.
+     *
+     * @param val
+     * @param placeholder
+     */
     addArgument(val: string, placeholder: string = '{}'): Logger {
         const logger = this.createSubLogger();
         logger.args || (logger.args = []);
@@ -90,11 +144,14 @@ export default class Logger implements LogStrategy {
         return logger;
     }
 
-    private createSubLogger(): Logger {
+    private createSubLogger(logStrategy: LogStrategy = this.logStrategy): Logger {
         if (this.#main) {
-            const logger = new Logger(this.logLevel, this.logStrategy);
+            const logger = new Logger(this.logLevel, logStrategy);
             logger.#main = false;
+            this.categoryLogStrategyCache.forEach((s, key) => logger.categoryLogStrategyCache.set(key, s));
             return logger;
+        } else if (logStrategy !== this.logStrategy) {
+            this.logStrategy = logStrategy;
         }
         return this;
     }

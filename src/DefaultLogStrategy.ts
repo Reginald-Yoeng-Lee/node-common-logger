@@ -15,6 +15,10 @@ export default class DefaultLogStrategy implements LogStrategy {
         }
     }
 
+    category(name: string): LogStrategy {
+        return this;
+    }
+
     verbose(msg: string): void {
         this.log(LogLevel.VERBOSE, msg);
     }
