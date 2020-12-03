@@ -1,6 +1,6 @@
 {
   "name": "node-common-logger",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A node library provides flexible logging ways and simple facade. User could use whatever implementations they like with the uniform api.",
   "main": "./dist/index.js",
   "types": "./typings/index.d.ts",

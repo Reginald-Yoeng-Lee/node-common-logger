@@ -39,6 +39,10 @@ export default class Logger implements LogStrategy {
      * would be applied to the successor new Logger), do NOT modify the logStrategy property of the returned Logger.
      * Instead, modify the one imported.
      *
+     * The returned Logger should be considered as a <i>short term</i> object, which means we should always fetch a new
+     * one when using instead of keeping or reusing the old one. Otherwise the new LogStrategy being applied to the logger
+     * (if any) can NOT be applied to the old returned Logger.
+     *
      * @param name
      * @param useCache
      */
@@ -116,6 +120,10 @@ export default class Logger implements LogStrategy {
      * would be applied to the successor new Logger), do NOT modify the logStrategy property of the returned Logger.
      * Instead, modify the one imported.
      *
+     * The returned Logger should be considered as a <i>short term</i> object, which means we should always fetch a new
+     * one when using instead of keeping or reusing the old one. Otherwise the new LogStrategy being applied to the logger
+     * (if any) can NOT be applied to the old returned Logger.
+     *
      * @param tag The text being prepended.
      * @param separator The text between the tag and the content.
      */
@@ -133,6 +141,10 @@ export default class Logger implements LogStrategy {
      * Notice: The Logger returned from here could be a brand new one. So if we want to change the basic LogStrategy (which
      * would be applied to the successor new Logger), do NOT modify the logStrategy property of the returned Logger.
      * Instead, modify the one imported.
+     *
+     * The returned Logger should be considered as a <i>short term</i> object, which means we should always fetch a new
+     * one when using instead of keeping or reusing the old one. Otherwise the new LogStrategy being applied to the logger
+     * (if any) can NOT be applied to the old returned Logger.
      *
      * @param val
      * @param placeholder

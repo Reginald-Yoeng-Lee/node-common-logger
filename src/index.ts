@@ -7,4 +7,4 @@ const logger = new Logger(LogLevel.INFO, new DefaultLogStrategy());
 export default logger;
 
 export {default as LogStrategy} from './LogStrategy';
-export {logger, LogLevel};
+export {logger, Logger, LogLevel};
