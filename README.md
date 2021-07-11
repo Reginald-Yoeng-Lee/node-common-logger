@@ -27,7 +27,7 @@ logger.info('Log every thing you like.');
 
 By default, logger only log content to the console, which may not be so useful. As a facade library, more general use case is implementing and setting up your own LogStrategy. This is actually an easy job.
 
-First, implementing a specific LogStrategy. Let's take _winston_ as an example(in fact you can use whatever log util you like).
+First, implementing a specific LogStrategy. Let's take _winston_ as an example (in fact you can use whatever log util you like).
 ```typescript
 // WinstonLogStrategy.ts
 
@@ -53,7 +53,12 @@ logger.logStrategy = new WinstonLogStrategy();
 
 ### Advance usage
 
-`Logger` as the main component of this library, besides implements the `LogStrategy`, it also contains several additional methods. All these methods provide special features by logging with the returned `Logger`, which may or may not be a new object. However, no matter what they return, the returned object should always be considered the _short term_ object. That is, fetch a new one by calling these methods every time needed, and do NOT keep or reuse the returned object. Here is the brief introduction of the methods:
+`Logger` as the main component of this library, besides implements the `LogStrategy`, it also contains several additional methods. 
+All these methods provide special features by logging with the returned `Logger`, which usually is a derived object. _derived object_ here means a new object which prototype is the wrapped `Logger`.
+The logger returned from these methods could be keep for further usage. 
+The changing of the `LogStrategy` of the main logger (the one deriving all the other loggers) will affect all the derived loggers unless the derived one has set its own `LogStrategy`.
+
+Here is the brief introduction of the methods:
 
 ##### logger.tag(tagName, tagSeparator)
 Prepends the given tag before every content logged, separate by the separator.
@@ -68,3 +73,13 @@ Replace the first placeholder in the logging content with the given value.
 logger.addArgument('apple', '{}').addArgument('banana', '{}').info('I want to eat {}, not {}.');
 // Log 'I want to eat apple, not banana.'
 ```
+
+### Change logs
+
+##### 0.2.x and above
+`Logger`s returned from all methods of `Logger` are the derived ones which could be kept for further usage. 
+These loggers share the same main logger as the prototype object. Change the `LogStrategy` of the main logger could also apply to all the other `Logger`s if it hasn't set its own `LogStrategy`.
+At the previous version, the `Logger`s returned should be considered as _short term_ object and shouldn't be kept.
+
+##### 0.1.x
+The first version.

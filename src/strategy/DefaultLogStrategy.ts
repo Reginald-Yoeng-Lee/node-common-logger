@@ -1,5 +1,5 @@
 import LogStrategy from "./LogStrategy";
-import LogLevel from "./LogLevel";
+import LogLevel from "../LogLevel";
 
 export default class DefaultLogStrategy implements LogStrategy {
 

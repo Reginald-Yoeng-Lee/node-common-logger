@@ -1,28 +1,33 @@
-import LogStrategy from "./LogStrategy";
+import LogStrategy from "./strategy/LogStrategy";
 import LogLevel from "./LogLevel";
+import MessageDecoration from "./decoration/MessageDecoration";
 
 export default class Logger implements LogStrategy {
 
     logLevel: LogLevel;
 
     private strategy: LogStrategy;
+    messageDecoration?: MessageDecoration;
 
     private currentTag?: string;
     private tagSeparator?: string;
-    private args?: [string, string][];
+    private argumentValue?: string;
+    private argumentPlaceholder?: string;
     private readonly categoryLogStrategyCache = new Map<string, LogStrategy>();
 
-    #main = true;
-
-    constructor(logLevel: LogLevel, logStrategy: LogStrategy) {
+    constructor(logLevel: LogLevel, logStrategy: LogStrategy, msgDecoration?: MessageDecoration) {
         this.logLevel = logLevel;
         this.strategy = logStrategy;
+        this.messageDecoration = msgDecoration;
     }
 
     set logStrategy(strategy: LogStrategy) {
         if (this.strategy !== strategy) {
             this.strategy = strategy;
-            this.categoryLogStrategyCache.clear();
+            const categoryNames = this.categoryLogStrategyCache.keys();
+            for (let name of categoryNames) {
+                this.categoryLogStrategyCache.set(name, strategy.category(name));
+            }
         }
     }
 
@@ -32,16 +37,16 @@ export default class Logger implements LogStrategy {
 
     /**
      * Fetch a specific named category logger. The result may be fetched from the cache unless <code>useCache</code> is
-     * set to <code>false</code>. Since the category is relative to the basic LogStrategy, the caches would be cleared if
+     * set to <code>false</code>. Since the category is relative to the basic LogStrategy, the caches would be rebuilt if
      * the base LogStrategy changed.
      *
-     * Notice: The Logger returned from here could be a brand new one. So if we want to change the basic LogStrategy (which
-     * would be applied to the successor new Logger), do NOT modify the logStrategy property of the returned Logger.
-     * Instead, modify the one imported.
+     * Notice: The Logger returned from here should be a wrapped one. So if we want to change the basic LogStrategy (which
+     * would be applied to all Loggers), do NOT modify the logStrategy property of the returned Logger.
      *
-     * The returned Logger should be considered as a <i>short term</i> object, which means we should always fetch a new
-     * one when using instead of keeping or reusing the old one. Otherwise the new LogStrategy being applied to the logger
-     * (if any) can NOT be applied to the old returned Logger.
+     * As mentioned above, the Logger returned from here is a wrapped one, which get the category-related LogStrategy from
+     * the cache by category name. Since the cache will be rebuilt by the main logger (the one created from the very beginning)
+     * whenever the logStrategy of the main logger changed, the category-related LogStrategy fetched from the cache should
+     * NEVER be null.
      *
      * @param name
      * @param useCache
@@ -52,7 +57,17 @@ export default class Logger implements LogStrategy {
             categoryStrategy = this.logStrategy.category(name);
             this.categoryLogStrategyCache.set(name, categoryStrategy);
         }
-        return this.createSubLogger(categoryStrategy);
+        const logger = this.derive();
+        Object.defineProperty(logger, 'strategy', {
+            get(): LogStrategy {
+                const strategy = this.categoryLogStrategyCache.get(name);
+                if (!strategy) {
+                    throw new Error(`undefined strategy for ${name}. This should NOT gonna happen. Please report this as a bug.`);
+                }
+                return strategy;
+            },
+        });
+        return logger;
     }
 
     log(level: LogLevel, msg: string, err?: Error): void {
@@ -116,19 +131,16 @@ export default class Logger implements LogStrategy {
     /**
      * Fetch a logger that prepends a tag right before the actual logging content automatically.
      *
-     * Notice: The Logger returned from here could be a brand new one. So if we want to change the basic LogStrategy (which
-     * would be applied to the successor new Logger), do NOT modify the logStrategy property of the returned Logger.
-     * Instead, modify the one imported.
-     *
-     * The returned Logger should be considered as a <i>short term</i> object, which means we should always fetch a new
-     * one when using instead of keeping or reusing the old one. Otherwise the new LogStrategy being applied to the logger
-     * (if any) can NOT be applied to the old returned Logger.
+     * Notice: The Logger returned from here should be a wrapped one. So if we want to change the basic LogStrategy (which
+     * would be applied to all Loggers), do NOT modify the logStrategy property of the returned Logger.
+     * Instead, modify the original one. In other word, change the logStrategy of the original logger will affect the derived
+     * ones (the logger returns from this method).
      *
      * @param tag The text being prepended.
      * @param separator The text between the tag and the content.
      */
     tag(tag: string, separator: string = ' - '): Logger {
-        const logger = this.createSubLogger();
+        const logger = this.derive();
         logger.currentTag = tag;
         logger.tagSeparator = separator;
         return logger;
@@ -138,45 +150,48 @@ export default class Logger implements LogStrategy {
      * Fetch a logger allows replace the first special symbol in the current logging content to the very argument. We could
      * call this method multiple times in chain for replace multiple symbols.
      *
-     * Notice: The Logger returned from here could be a brand new one. So if we want to change the basic LogStrategy (which
-     * would be applied to the successor new Logger), do NOT modify the logStrategy property of the returned Logger.
-     * Instead, modify the one imported.
-     *
-     * The returned Logger should be considered as a <i>short term</i> object, which means we should always fetch a new
-     * one when using instead of keeping or reusing the old one. Otherwise the new LogStrategy being applied to the logger
-     * (if any) can NOT be applied to the old returned Logger.
+     * Notice: The Logger returned from here should be a wrapped one. So if we want to change the basic LogStrategy (which
+     * would be applied to all Loggers), do NOT modify the logStrategy property of the returned Logger.
+     * Instead, modify the original one. In other word, change the logStrategy of the original logger will affect the derived
+     * ones (the logger returns from this method).
      *
      * @param val
      * @param placeholder
      */
     addArgument(val: string, placeholder: string = '{}'): Logger {
-        const logger = this.createSubLogger();
-        logger.args || (logger.args = []);
-        logger.args.push([placeholder, val]);
+        const logger = this.derive();
+        logger.argumentValue = val;
+        logger.argumentPlaceholder = placeholder;
         return logger;
     }
 
-    private createSubLogger(logStrategy: LogStrategy = this.logStrategy): Logger {
-        if (this.#main) {
-            const logger = new Logger(this.logLevel, logStrategy);
-            logger.#main = false;
-            this.categoryLogStrategyCache.forEach((s, key) => logger.categoryLogStrategyCache.set(key, s));
-            return logger;
-        } else if (logStrategy !== this.logStrategy) {
-            this.logStrategy = logStrategy;
+    private applyArgument(msg: string): string {
+        const prototype = Object.getPrototypeOf(this);
+        if (prototype instanceof Logger) {
+            msg = prototype.applyArgument(msg);
         }
-        return this;
+        return this.argumentPlaceholder && this.argumentValue && msg.replace(this.argumentPlaceholder, this.argumentValue) || msg;
     }
 
-    private decorateMsg(msg: string): string {
+    protected derive(): Logger {
+        return Object.create(this);
+    }
+
+    protected decorateMsg(msg: string): string {
+        const decorated = this.messageDecoration?.beforeDecorate?.(this, msg);
+        if (Array.isArray(decorated) && decorated[0]) {
+            return decorated[1];
+        }
+
+        msg = Array.isArray(decorated) ? decorated[1] : (decorated || msg);
+
         if (this.currentTag) {
             msg = `${this.currentTag}${this.tagSeparator || ''}${msg}`;
         }
-        if (this.args) {
-            for (let [placeholder, val] of this.args) {
-                msg = msg.replace(placeholder, val);
-            }
-        }
+        msg = this.applyArgument(msg);
+
+        msg = this.messageDecoration?.decorate?.(this, msg) || msg;
+
         return msg;
     }
 }
