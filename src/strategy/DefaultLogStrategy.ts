@@ -4,6 +4,8 @@ import LogLevel from "../LogLevel";
 export default class DefaultLogStrategy implements LogStrategy {
 
     log(level: LogLevel, msg: string, err?: Error): void {
+        const levelName = LogLevel[level];
+        msg = `${levelName}${new Array(10 - levelName.length).fill(' ').join('')}${msg}`;
         if (level <= LogLevel.ERROR) {
             console.error(msg, err || '');
         } else if (level === LogLevel.WARN) {

@@ -76,6 +76,9 @@ logger.addArgument('apple', '{}').addArgument('banana', '{}').info('I want to ea
 
 ### Change logs
 
+##### 0.2.1
+Add log level to the start of the message when using `DefaultLogStrategy`.
+
 ##### 0.2.x and above
 `Logger`s returned from all methods of `Logger` are the derived ones which could be kept for further usage. 
 These loggers share the same main logger as the prototype object. Change the `LogStrategy` of the main logger could also apply to all the other `Logger`s if it hasn't set its own `LogStrategy`.
