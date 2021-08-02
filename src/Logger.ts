@@ -7,7 +7,7 @@ export default class Logger implements LogStrategy {
     logLevel: LogLevel;
 
     private strategy: LogStrategy;
-    messageDecoration?: MessageDecoration;
+    private readonly messageDecorations: MessageDecoration[];
 
     private currentTag?: string;
     private tagSeparator?: string;
@@ -15,10 +15,18 @@ export default class Logger implements LogStrategy {
     private argumentPlaceholder?: string;
     private readonly categoryLogStrategyCache = new Map<string, LogStrategy>();
 
-    constructor(logLevel: LogLevel, logStrategy: LogStrategy, msgDecoration?: MessageDecoration) {
+    constructor(logLevel: LogLevel, logStrategy: LogStrategy, ...msgDecorations: MessageDecoration[]) {
         this.logLevel = logLevel;
         this.strategy = logStrategy;
-        this.messageDecoration = msgDecoration;
+        this.messageDecorations = [{
+            decorate: (logger, logLevel, msg): string => {
+                if (logger.currentTag) {
+                    msg = `${logger.currentTag}${logger.tagSeparator || ''}${msg}`;
+                }
+                return logger.applyArgument(msg);
+            },
+        }];
+        msgDecorations.forEach(decoration => this.addMessageDecoration(decoration));
     }
 
     set logStrategy(strategy: LogStrategy) {
@@ -33,6 +41,26 @@ export default class Logger implements LogStrategy {
 
     get logStrategy(): LogStrategy {
         return this.strategy;
+    }
+
+    addMessageDecoration(messageDecoration: MessageDecoration): Logger {
+        for (let [i, decoration] of this.messageDecorations.entries()) {
+            if ((messageDecoration.priority || 0) < (decoration.priority || 0)) {
+                this.messageDecorations.splice(i, 0, messageDecoration);
+                return this;
+            }
+        }
+        this.messageDecorations.push(messageDecoration);
+        return this;
+    }
+
+    getMessageDecorations(): MessageDecoration[] {
+        return [...this.messageDecorations];
+    }
+
+    clearMessageDecorations(): Logger {
+        this.messageDecorations.length = 0;
+        return this;
     }
 
     /**
@@ -75,7 +103,7 @@ export default class Logger implements LogStrategy {
             return;
         }
         if (this.logStrategy.log) {
-            this.logStrategy.log(level, this.decorateMsg(msg), err);
+            this.logStrategy.log(level, this.decorateMsg(level, msg), err);
         } else {
             switch (level) {
                 case LogLevel.VERBOSE:
@@ -101,27 +129,27 @@ export default class Logger implements LogStrategy {
     }
 
     verbose(msg: string): void {
-        this.shouldLog(LogLevel.VERBOSE) && this.logStrategy.verbose(this.decorateMsg(msg));
+        this.shouldLog(LogLevel.VERBOSE) && this.logStrategy.verbose(this.decorateMsg(LogLevel.VERBOSE, msg));
     }
 
     debug(msg: string): void {
-        this.shouldLog(LogLevel.DEBUG) && this.logStrategy.debug(this.decorateMsg(msg));
+        this.shouldLog(LogLevel.DEBUG) && this.logStrategy.debug(this.decorateMsg(LogLevel.DEBUG, msg));
     }
 
     info(msg: string): void {
-        this.shouldLog(LogLevel.INFO) && this.logStrategy.info(this.decorateMsg(msg));
+        this.shouldLog(LogLevel.INFO) && this.logStrategy.info(this.decorateMsg(LogLevel.INFO, msg));
     }
 
     warn(msg: string, err?: Error): void {
-        this.shouldLog(LogLevel.WARN) && this.logStrategy.warn(this.decorateMsg(msg), err);
+        this.shouldLog(LogLevel.WARN) && this.logStrategy.warn(this.decorateMsg(LogLevel.WARN, msg), err);
     }
 
     error(msg: string, err?: Error): void {
-        this.shouldLog(LogLevel.ERROR) && this.logStrategy.error(this.decorateMsg(msg), err);
+        this.shouldLog(LogLevel.ERROR) && this.logStrategy.error(this.decorateMsg(LogLevel.ERROR, msg), err);
     }
 
     fatal(msg: string, err?: Error): void {
-        this.shouldLog(LogLevel.FATAL) && this.logStrategy.fatal(this.decorateMsg(msg), err);
+        this.shouldLog(LogLevel.FATAL) && this.logStrategy.fatal(this.decorateMsg(LogLevel.FATAL, msg), err);
     }
 
     shouldLog(level: LogLevel): boolean {
@@ -174,24 +202,12 @@ export default class Logger implements LogStrategy {
     }
 
     protected derive(): Logger {
-        return Object.create(this);
+        const logger = Object.create(this);
+        logger.messageDecorations = [...this.messageDecorations];
+        return logger;
     }
 
-    protected decorateMsg(msg: string): string {
-        const decorated = this.messageDecoration?.beforeDecorate?.(this, msg);
-        if (Array.isArray(decorated) && decorated[0]) {
-            return decorated[1];
-        }
-
-        msg = Array.isArray(decorated) ? decorated[1] : (decorated || msg);
-
-        if (this.currentTag) {
-            msg = `${this.currentTag}${this.tagSeparator || ''}${msg}`;
-        }
-        msg = this.applyArgument(msg);
-
-        msg = this.messageDecoration?.decorate?.(this, msg) || msg;
-
-        return msg;
+    private decorateMsg(logLevel: LogLevel, msg: string): string {
+        return this.messageDecorations.reduce((previousMsg, decoration) => decoration.decorate(this, logLevel, previousMsg), msg);
     }
 }

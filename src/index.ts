@@ -8,4 +8,5 @@ export default logger;
 
 export {default as LogStrategy} from './strategy/LogStrategy';
 export {default as MessageDecoration} from './decoration/MessageDecoration';
+export {default as LogLevelMessageDecoration} from './decoration/LogLevelMessageDecoration';
 export {logger, Logger, LogLevel};

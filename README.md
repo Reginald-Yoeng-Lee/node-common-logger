@@ -51,6 +51,53 @@ logger.logStrategy = new WinstonLogStrategy();
 // Continue your job.
 ```
 
+### MessageDecoration
+
+Besides the business content being logged, sometimes we may want to _decorate_ the content with some extra information, such as timestamp or log level and so on,
+We introduce interface `MessageDecoration` to solve this problem. The `Logger` could contain 0 or N `MessageDecoration`, and the decorations will be applied to every messages being logged.
+Each decoration has a `priority` property, indicates the order of the decorations being called. The smaller value means the higher priority, and higher priority means the earlier being called.
+
+
+Consider four `MessageDecoration` A, B, C and D, which contains the priority -1, 0, 0 and 1 individually. Let's add these decorations to the logger as the following order:
+```javascript
+logger.addMessageDecoration(D); // D.priority === 1
+logger.addMessageDecoration(C); // C.priority === 0
+logger.addMessageDecoration(B); // B.priority === 0
+logger.addMessageDecoration(A); // A.priority === -1
+```
+The order of the decorations being called would be:
+```javascript
+A.decorate(logger, logLeve, msg);
+C.decorate(logger, logLeve, msg);
+B.decorate(logger, logLeve, msg);
+D.decorate(logger, logLeve, msg);
+```
+
+Each _derived_ logger manges its own `MessageDecoration` list. That is, adding a new decoration to the logger returned from `logger.tag()` will NOT affect the origin logger.
+When a new logger derived from the origin logger, all the decorations of the origin logger will be copied to the derived one. The decorations of different derived loggers are managed separately.
+In the other word, changing the decorations of one logger (even the main logger) will NOT affect the other existed logger, and vice versa.
+By default, a `MessageDecoration` for decorating the message with the `tag` and `tagSeparator` will be added as the first decoration with priority 0. We strongly recommend that DON'T call `logger.clearMessageDecorations()` at the main (origin) logger.
+Instead, always build a derived logger (by calling `logger.tag('', '')`, for example) and then do whatever you like.  
+
+Several methods in `logger` are related to the management of the `MessageDecoration`:  
+
+`logger.addMessageDecoration(messageDecoration: MessageDecoration): Logger`  
+Add decoration to logger.  
+
+`logger.getMessageDecorations(): MessageDecoration[]`  
+Get a shallow copy of the decoration list of the logger. Remember that modify the returned array will NOT affect the logger's decoration list.  
+
+`logger.clearMessageDecorations(): Logger`  
+Clear the decorations of the logger.
+
+##### MessageDecoration available outbox
+Some `MessageDecoration`s are predefined and available outbox:  
+
+`LogLevelMessageDecoration`  
+Prepend log level (DEBUG, INFO, ERROR, etc.) to the beginning of the message.  
+
+By default, an anonymous decoration with priority 0 is added to the logger as the first decoration to handle the tag and tag separator set on the logger.
+
 ### Advance usage
 
 `Logger` as the main component of this library, besides implements the `LogStrategy`, it also contains several additional methods. 
@@ -74,7 +121,21 @@ logger.addArgument('apple', '{}').addArgument('banana', '{}').info('I want to ea
 // Log 'I want to eat apple, not banana.'
 ```
 
+### Methods deriving new logger
+Here's the methods which will derive a new logger from the current logger when being called.  
+`logger.category(name: string, useCache: boolean = true): Logger`  
+`logger.tag(tag: string, separator: string = ' - '): Logger`  
+`logger.addArgument(val: string, placeholder: string = '{}'): Logger`
+
 ### Change logs
+
+##### 0.3.0
+`Logger` can contain more than one `MessageDecoration`, and all the decorations will be applied according to their priorities.  
+The tag and tag separator of the logger is handled by a `MessageDecoration` added to the logger at the very first beginning now.  
+
+BREAKING CHANGES:  
+Method `MessageDecoration#beforeDecorate(logger: Logger, msg: string)` is removed.  
+Method `MessageDecoration#decorate(logger: Logger, msg: string): string` is changed to `MessageDecoration#decorate(logger: Logger, logLevel: LogLevel, msg: string): string` and no longer being optional.
 
 ##### 0.2.1
 Add log level to the start of the message when using `DefaultLogStrategy`.
