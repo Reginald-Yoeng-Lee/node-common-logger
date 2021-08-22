@@ -8,6 +8,7 @@ export default class Logger implements LogStrategy {
 
     private strategy: LogStrategy;
     private readonly messageDecorations: MessageDecoration[];
+    private readonly globalMessageDecorations: MessageDecoration[];
 
     private currentTag?: string;
     private tagSeparator?: string;
@@ -26,6 +27,7 @@ export default class Logger implements LogStrategy {
                 return logger.applyArgument(msg);
             },
         }];
+        this.globalMessageDecorations = [];
         msgDecorations.forEach(decoration => this.addMessageDecoration(decoration));
     }
 
@@ -44,13 +46,7 @@ export default class Logger implements LogStrategy {
     }
 
     addMessageDecoration(messageDecoration: MessageDecoration): Logger {
-        for (let [i, decoration] of this.messageDecorations.entries()) {
-            if ((messageDecoration.priority || 0) < (decoration.priority || 0)) {
-                this.messageDecorations.splice(i, 0, messageDecoration);
-                return this;
-            }
-        }
-        this.messageDecorations.push(messageDecoration);
+        Logger.insertMessageDecoration(this.messageDecorations, messageDecoration);
         return this;
     }
 
@@ -60,6 +56,20 @@ export default class Logger implements LogStrategy {
 
     clearMessageDecorations(): Logger {
         this.messageDecorations.length = 0;
+        return this;
+    }
+
+    addGlobalMessageDecoration(messageDecoration: MessageDecoration): Logger {
+        Logger.insertMessageDecoration(this.globalMessageDecorations, messageDecoration);
+        return this;
+    }
+
+    getGlobalMessageDecorations(): MessageDecoration[] {
+        return [...this.globalMessageDecorations];
+    }
+
+    clearGlobalMessageDecorations(): Logger {
+        this.globalMessageDecorations.length = 0;
         return this;
     }
 
@@ -208,6 +218,24 @@ export default class Logger implements LogStrategy {
     }
 
     private decorateMsg(logLevel: LogLevel, msg: string): string {
-        return this.messageDecorations.reduce((previousMsg, decoration) => decoration.decorate(this, logLevel, previousMsg), msg);
+        return this.mergeLocalAndGlobalDecorations().reduce((previousMsg, decoration) => decoration.decorate(this, logLevel, previousMsg), msg);
+    }
+
+    private mergeLocalAndGlobalDecorations(): MessageDecoration[] {
+        const messageDecorations = this.getMessageDecorations();
+        for (let globalMessageDecoration of this.globalMessageDecorations) {
+            Logger.insertMessageDecoration(messageDecorations, globalMessageDecoration);
+        }
+        return messageDecorations;
+    }
+
+    private static insertMessageDecoration(list: MessageDecoration[], messageDecoration: MessageDecoration): void {
+        for (let [i, decoration] of list.entries()) {
+            if ((messageDecoration.priority || 0) < (decoration.priority || 0)) {
+                list.splice(i, 0, messageDecoration);
+                return;
+            }
+        }
+        list.push(messageDecoration);
     }
 }

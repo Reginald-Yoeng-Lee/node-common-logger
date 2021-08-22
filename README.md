@@ -73,13 +73,15 @@ B.decorate(logger, logLeve, msg);
 D.decorate(logger, logLeve, msg);
 ```
 
-Each _derived_ logger manges its own `MessageDecoration` list. That is, adding a new decoration to the logger returned from `logger.tag()` will NOT affect the origin logger.
-When a new logger derived from the origin logger, all the decorations of the origin logger will be copied to the derived one. The decorations of different derived loggers are managed separately.
-In the other word, changing the decorations of one logger (even the main logger) will NOT affect the other existed logger, and vice versa.
+##### Private MessageDecoration
+
+Each _derived_ logger manages its own `MessageDecoration` list. That is, adding a new decoration to the logger returned from `logger.tag()` will NOT affect the origin logger.
+When a new logger derived from the origin logger, all the private decorations of the origin logger will be copied to the derived one. The decorations of different derived loggers are managed separately.
+In the other word, changing the private decorations of one logger (even the main logger) will NOT affect the other existed logger, and vice versa.
 By default, a `MessageDecoration` for decorating the message with the `tag` and `tagSeparator` will be added as the first decoration with priority 0. We strongly recommend that DON'T call `logger.clearMessageDecorations()` at the main (origin) logger.
 Instead, always build a derived logger (by calling `logger.tag('', '')`, for example) and then do whatever you like.  
 
-Several methods in `logger` are related to the management of the `MessageDecoration`:  
+Several methods in `logger` are related to the management of the private `MessageDecoration`s:  
 
 `logger.addMessageDecoration(messageDecoration: MessageDecoration): Logger`  
 Add decoration to logger.  
@@ -89,6 +91,22 @@ Get a shallow copy of the decoration list of the logger. Remember that modify th
 
 `logger.clearMessageDecorations(): Logger`  
 Clear the decorations of the logger.
+
+##### Global MessageDecoration
+
+All _derived_ loggers share a _global_ `MessageDecoration` list. Changing any global decoration on any `logger` will affect all the other `logger`s' behaviour. 
+When logging messages, private decorations and global decorations will be merged and ordered by their priorities. When a private decoration and a global decoration share the same priority number, the private one has the higher priority.
+
+Several methods in `logger` are related to the management of the global `MessageDecoration`s:
+
+`logger.addGlobalMessageDecoration(messageDecoration: MessageDecoration): Logger`  
+Add global decoration to all loggers.
+
+`logger.getGlobalMessageDecorations(): MessageDecoration[]`  
+Get a shallow copy of the decoration list of the logger. Remember that modify the returned array will NOT affect the global decoration list.
+
+`logger.clearGlobalMessageDecorations(): Logger`  
+Clear the global decorations of the logger.
 
 ##### MessageDecoration available outbox
 Some `MessageDecoration`s are predefined and available outbox:  
@@ -128,6 +146,9 @@ Here's the methods which will derive a new logger from the current logger when b
 `logger.addArgument(val: string, placeholder: string = '{}'): Logger`
 
 ### Change logs
+
+##### 0.3.1
+Introduce _global MessageDecoration_ to `logger`, which will be applied to all derived `logger`s.
 
 ##### 0.3.0
 `Logger` can contain more than one `MessageDecoration`, and all the decorations will be applied according to their priorities.  
